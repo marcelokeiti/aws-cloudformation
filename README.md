@@ -1,9 +1,7 @@
 # aws-cloudformation
-Here you will find a suggested architecture to deploy all your infrastructure in AWS. For organization purpose I separate the infrastructure related resources from the application related resources.
+Here you will find a suggested architecture to deploy all your resources in AWS.
 
 ## Infrastructure
+This template aimed to create the underline infrastructure in which other layers will be deployed.
 
 ![Infrastructure](/infrastructure/resources/infrastructure.jpg)
-
-## Application
-
