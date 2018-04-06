@@ -71,7 +71,7 @@ Resources:
       InternetGatewayId: !Ref IGW
       VpcId: !Ref VPC
 
-  PublisSubnetA:
+  PublicSubnetA:
     Type: "AWS::EC2::Subnet"
     Properties:
       AvailabilityZone: !Select [0, !GetAZs ]
@@ -81,7 +81,7 @@ Resources:
       Tags:
         - Key: Name
           Value: subnet-a
-  PublisSubnetB:
+  PublicSubnetB:
     Type: "AWS::EC2::Subnet"
     Properties:
       AvailabilityZone: !Select [1, !GetAZs ]
@@ -91,7 +91,7 @@ Resources:
       Tags:
         - Key: Name
           Value: subnet-b
-  PublisSubnetC:
+  PublicSubnetC:
     Type: "AWS::EC2::Subnet"
     Properties:
       AvailabilityZone: !Select [2, !GetAZs ]
@@ -117,21 +117,21 @@ Resources:
       GatewayId: !Ref IGW
       RouteTableId: !Ref PublicRouteTable
 
-  PublisSubnetAPublicRouteTable:
+  PublicSubnetAPublicRouteTable:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
     Properties:
       RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublisSubnetA
-  PublisSubnetBPublicRouteTable:
+      SubnetId: !Ref PublicSubnetA
+  PublicSubnetBPublicRouteTable:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
     Properties:
       RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublisSubnetB
-  PublisSubnetCPublicRouteTable:
+      SubnetId: !Ref PublicSubnetB
+  PublicSubnetCPublicRouteTable:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
     Properties:
       RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublisSubnetC
+      SubnetId: !Ref PublicSubnetC
 
   EIPNatGatewayA:
     Type: "AWS::EC2::EIP"
@@ -142,7 +142,7 @@ Resources:
     Type: "AWS::EC2::NatGateway"
     Properties:
       AllocationId: !GetAtt EIPNatGatewayA.AllocationId
-      SubnetId: !Ref PublisSubnetA
+      SubnetId: !Ref PublicSubnetA
       Tags:
         - Key: Name
           Value: ngtw-a
@@ -169,7 +169,7 @@ Resources:
     Type: "AWS::EC2::NatGateway"
     Properties:
       AllocationId: !GetAtt EIPNatGatewayB.AllocationId
-      SubnetId: !Ref PublisSubnetB
+      SubnetId: !Ref PublicSubnetB
       Tags:
         - Key: Name
           Value: ngtw-b
@@ -196,7 +196,7 @@ Resources:
     Type: "AWS::EC2::NatGateway"
     Properties:
       AllocationId: !GetAtt EIPNatGatewayC.AllocationId
-      SubnetId: !Ref PublisSubnetC
+      SubnetId: !Ref PublicSubnetC
       Tags:
         - Key: Name
           Value: ngtw-c
@@ -252,3 +252,19 @@ Outputs:
     Value: !Ref PrivateRouteTableC
     Export:
       Name: infra-private-rtb-c
+
+  publicsubneta:
+    Description: ID of Public Subnet A
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: infra-public-subnet-a
+  publicsubnetb:
+    Description: ID of Public Subnet B
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: infra-public-subnet-b
+  publicsubnetc:
+    Description: ID of Public Subnet C
+    Value: !Ref PublicSubnetC
+    Export:
+      Name: infra-public-subnet-c
