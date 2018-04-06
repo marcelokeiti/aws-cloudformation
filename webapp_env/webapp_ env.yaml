@@ -1,0 +1,215 @@
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Launch Configuration"
+        Parameters:
+          - AMI
+          - InstanceType
+          - KeyName
+      -
+        Label:
+          default: "Auto Scaling Group"
+        Parameters:
+          - MinSize
+          - MaxSize
+          - DesiredCapacity
+
+    ParameterLabels:
+      AMI:
+        default: "AMI"
+      InstanceType:
+        default: "Instance Type"
+      KeyName:
+        default: "Key Name"
+      MinSize:
+        default: "Minimum Size"
+      MaxSize:
+        default: "Maximum Size"
+      DesiredCapacity:
+        default: "Desired Capacity"
+
+Parameters:
+  AMI:
+    Type: AWS::EC2::Image::Id
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  MinSize:
+    Type: String
+    Default: "1"
+  MaxSize:
+    Type: String
+    Default: "2"
+  DesiredCapacity:
+    Type: String
+    Default: "1"
+
+Resources:
+  ELBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Join ["", ["sg-elb-stack-", !Ref "AWS::StackId"]]
+      VpcId: !ImportValue infra-vpc-id
+      SecurityGroupIngress:
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "80"
+          FromPort: "80"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "443"
+          FromPort: "443"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "22"
+          FromPort: "22"
+      SecurityGroupEgress:
+        -
+          CidrIp: 0.0.0.0/0
+          ToPort: "-1"
+          IpProtocol: "-1"
+  ELB:
+    Type: "AWS::ElasticLoadBalancing::LoadBalancer"
+    Properties:
+      CrossZone: true
+      Listeners:
+        -
+          InstancePort: "80"
+          InstanceProtocol: HTTP
+          LoadBalancerPort: "80"
+          Protocol: HTTP
+      Subnets:
+        - !ImportValue infra-public-subnet-a
+        - !ImportValue infra-public-subnet-b
+        - !ImportValue infra-public-subnet-c
+      SecurityGroups:
+        - !Ref ELBSecurityGroup
+
+  LCSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Join ["", ["sg-lc-stack-", !Ref "AWS::StackId"]]
+      VpcId: !ImportValue infra-vpc-id
+      SecurityGroupIngress:
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "80"
+          FromPort: "80"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "443"
+          FromPort: "443"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "22"
+          FromPort: "22"
+      SecurityGroupEgress:
+        -
+          CidrIp: 0.0.0.0/0
+          ToPort: "-1"
+          IpProtocol: "-1"
+  LaunchConfiguration:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - !Ref LCSecurityGroup
+      UserData:
+        "Fn::Base64":
+          !Sub |
+            #!/bin/bash
+            yum update -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LaunchConfiguration --configsets init_all --region ${AWS::Region}
+            yum -y update
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          init_all:
+            - "configure_cfn"
+            - "install_www"
+        configure_cfn:
+          files:
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.LaunchConfiguration.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LaunchConfiguration --configsets init_all --region ${AWS::Region}
+              mode: "000400"
+              owner: root
+              group: root
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                verbose=true
+                interval=5
+              mode: "000400"
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - "/etc/cfn/cfn-hup.conf"
+                  - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+        install_www:
+          packages:
+            yum:
+              httpd: []
+          services:
+            sysvinit:
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+
+  AutoScalingGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    CreationPolicy:
+      ResourceSignal:
+        Count: !Ref DesiredCapacity
+        Timeout: "PT5M"
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+    Properties:
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      MinSize: !Ref MinSize
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref DesiredCapacity
+      Cooldown: "300"
+      HealthCheckGracePeriod: "300"
+      HealthCheckType: ELB
+      LoadBalancerNames:
+        - !Ref ELB
+      VPCZoneIdentifier:
+        - !ImportValue infra-public-subnet-a
+        - !ImportValue infra-public-subnet-b
+        - !ImportValue infra-public-subnet-c
+
+Outputs:
+  Endpoint:
+    Description: Application URL
+    Value: !Join ["", ["http://", !GetAtt ELB.DNSName]]
+
