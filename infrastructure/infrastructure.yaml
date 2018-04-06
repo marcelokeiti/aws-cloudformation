@@ -213,3 +213,42 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGatewayC
       RouteTableId: !Ref PrivateRouteTableC
+
+Outputs:
+  vpcid:
+    Description: ID of Infrastructure VPC
+    Value: !Ref VPC
+    Export:
+      Name: infra-vpc-id
+
+  natgatewayaid:
+    Description: ID of NAT Gateway A
+    Value: !Ref NatGatewayA
+  natgatewaybid:
+    Description: ID of NAT Gateway B
+    Value: !Ref NatGatewayB
+  natgatewaycid:
+    Description: ID of NAT Gateway C
+    Value: !Ref NatGatewayC
+
+  publicroutetable:
+    Description: ID of Public Route Table
+    Value: !Ref PublicRouteTable
+    Export:
+      Name: infra-public-rtb
+
+  privateroutetablea:
+    Description: ID of Private Route Table - A
+    Value: !Ref PrivateRouteTableA
+    Export:
+      Name: infra-private-rtb-a
+  privateroutetableb:
+    Description: ID of Private Route Table - B
+    Value: !Ref PrivateRouteTableB
+    Export:
+      Name: infra-private-rtb-b
+  privateroutetablec:
+    Description: ID of Private Route Table - C
+    Value: !Ref PrivateRouteTableC
+    Export:
+      Name: infra-private-rtb-c
